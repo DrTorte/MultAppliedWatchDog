@@ -32,10 +32,14 @@ refreshTimer: The intervals of server polls, in milliseconds. Default is once a 
 
 #### Email:
 
-```
-emailAlertThreshold: The amount of polls that the leg has to be detected down for before sending an email. Setting this to something higher than 1 allows a bit of tolerance to intentional reboots, but reduces accuracy.
+As part of the watch, it also sends emails based up on the alert threshold that is entered. This threshold refers to how many polls the customer has to remain down for during the polling. For example, if the threshold is five and the refresh timer is 60 seconds, it must remain down for five polls. 
 
-Each leg is tracked individually. Once a leg is back up, each poll it remains online for reduces this increment. Once it reaches 0, it is deemed stable once more and the email alert can be triggered again. Until it has reached 0, there will not be an additional email
+The increment is reduced if the leg is up when it is polled once more. So, if it is currently 3, but it is polled and is online, it is back down to 2. Once it has reached the threshold, an email is sent to all listed emails. This way, short interruptions such as intentional reboots or minor power surges do not cause a surge of emails.
+
+Once an email has been sent, this increment counter has to reach 0 once more before it is no longer considered tripped. Once it is back to 0 (using the above example, 5 polls that the bonder was online for) an email can once more be sent.
+
+```
+emailAlertThreshold: The amount of polls that the leg has to be detected down for before sending an email.
 
 fromEmail: The email that you wish to use in the from field.
 
