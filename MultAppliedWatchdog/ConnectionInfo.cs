@@ -8,77 +8,41 @@ using System.Threading.Tasks;
 
 namespace MultAppliedWatchdog
 {
-    class ConnectionInfo
+    class Configuration
     {
-        private string Username;
-        private string Password;
+        public static string URI;
+        public static string ApiURI { get { return URI + "/api/v3/"; } }
+        public static string BondURI { get { return URI + "/bonds/"; } }
 
-        public long Timer;
-        public long TimerTarget;
-        public int EmailAlertThreshold;
+        private string username;
+        private string password;
 
-        public string URL;
-        public string EmailFrom;
-        public List<string> EmailTo = new List<string>();
-        public List<string> EmailCC = new List<string>();
-
-        public string SMTPServer;
-        public int SMTPPort;
-        public string SMTPUser;
-        public string SMTPPass;
-
-        public bool Status = true;
+        public long timer;
+        public long timerTarget;
+        public int emailAlertThreshold;
+        public bool status = true;
 
         public NetworkCredential GetCredentials {
             get {
-                return new NetworkCredential(Username, Password);
+                return new NetworkCredential(username, password);
             }
         }
 
-        public bool readSettings()
+        public bool ReadSettings()
         {
             try
             {
-                Username = Properties.config.Default.username;
-                Password = Properties.config.Default.password;
-                URL = Properties.config.Default.server;
-                if (!Uri.IsWellFormedUriString(URL, UriKind.Absolute))
+                username = Properties.config.Default.username;
+                password = Properties.config.Default.password;
+                URI = Properties.config.Default.server;
+                if (!Uri.IsWellFormedUriString(URI, UriKind.Absolute))
                 {
-                    Console.WriteLine("URL {0} is invalid.", URL);
+                    Console.WriteLine("URL {0} is invalid.", URI);
                     return false;
                 }
-                TimerTarget = Properties.config.Default.refreshTimer;
-                EmailFrom = Properties.config.Default.fromEmail;
-                EmailTo = Properties.config.Default.toEmails.Split(',').ToList();
-                EmailCC = Properties.config.Default.ccEmails.Split(',').ToList();
-                EmailAlertThreshold = Properties.config.Default.emailAlertThreshold;
+                timerTarget = Properties.config.Default.refreshTimer;
+                emailAlertThreshold = Properties.config.Default.emailAlertThreshold;
 
-                List<string> EmailsToCheck = new List<string>();
-                EmailsToCheck.Add(EmailFrom);
-                EmailsToCheck.AddRange(EmailTo);
-                EmailsToCheck.AddRange(EmailCC);
-
-                foreach (string e in EmailsToCheck) {
-                    try
-                    {
-                        System.Net.Mail.MailAddress addr = new System.Net.Mail.MailAddress(e);
-                        if (addr.Address != e)
-                        {
-                            Console.WriteLine("Email {0} is invalid.", e);
-                            return false;
-                        }
-                    }
-                    catch
-                    {
-                        Console.WriteLine("Email {0} is invalid.", e);
-                        return false;
-                    }
-                }
-
-                SMTPServer = Properties.config.Default.smtp;
-                SMTPUser = Properties.config.Default.smtpUser;
-                SMTPPass = Properties.config.Default.smtpPass;
-                SMTPPort = Properties.config.Default.smtpPort;
                 return true;
             }
             catch
