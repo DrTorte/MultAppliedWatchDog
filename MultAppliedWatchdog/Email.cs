@@ -10,38 +10,39 @@ namespace MultAppliedWatchdog
 {
     class Email
     {
-        public string smtpServer;
-        public int smtpPort;
-        public string smtpUser;
-        public string smtpPass;
+        public string SmtpServer;
+        public int SmtpPort;
+        public string SmtpUser;
+        public string SmtpPass;
 
-        public string emailFrom;
-        public List<string> emailTo = new List<string>();
-        public List<string> emailCC = new List<string>();
+        public string EmailFrom;
+        public List<string> EmailTo = new List<string>();
+        public List<string> EmailCc = new List<string>();
 
         //a list of all the alerts to send.
-        public List<string> alertsToSend = new List<string>();
-        public long timeUntilSend;
+        public List<string> DownAlertsToSend = new List<string>();
+        public List<string> FlapAlertsToSend = new List<string>();
+        public long TimeUntilSend;
 
         //lock the thread.
-        public bool emailSending { get; private set; }
+        public bool EmailSending { get; private set; }
 
         public bool Configure()
         {
-            emailFrom = Properties.config.Default.fromEmail;
+            EmailFrom = Properties.config.Default.fromEmail;
             if (Properties.config.Default.toEmails != "")
             {
-                emailTo = Properties.config.Default.toEmails.Split(',').ToList();
+                EmailTo = Properties.config.Default.toEmails.Split(',').ToList();
             }
             if (Properties.config.Default.ccEmails != "")
             {
-                emailCC = Properties.config.Default.ccEmails.Split(',').ToList();
+                EmailCc = Properties.config.Default.ccEmails.Split(',').ToList();
             }
 
             List<string> EmailsToCheck = new List<string>();
-            EmailsToCheck.Add(emailFrom);
-            EmailsToCheck.AddRange(emailTo);
-            EmailsToCheck.AddRange(emailCC);
+            EmailsToCheck.Add(EmailFrom);
+            EmailsToCheck.AddRange(EmailTo);
+            EmailsToCheck.AddRange(EmailCc);
 
             foreach (string e in EmailsToCheck)
             {
@@ -61,61 +62,72 @@ namespace MultAppliedWatchdog
                 }
             }
 
-            smtpServer = Properties.config.Default.smtp;
-            smtpUser = Properties.config.Default.smtpUser;
-            smtpPass = Properties.config.Default.smtpPass;
-            smtpPort = Properties.config.Default.smtpPort;
+            SmtpServer = Properties.config.Default.smtp;
+            SmtpUser = Properties.config.Default.smtpUser;
+            SmtpPass = Properties.config.Default.smtpPass;
+            SmtpPort = Properties.config.Default.smtpPort;
 
             return true;
         }
 
         //add an entry, and start the timer, if it hasn't been started.
-        public void AddEmailAlert(int bondId, int legId, string bondName)
+        public void AddDownAlert(int bondId, int legId, string bondName)
         {
-            if (alertsToSend.Count == 0)
-            {
-                timeUntilSend = 60000;
-            }
+            PrepSend();
 
-            //to-do, add link.
-            //need to clear up the API URL first though.
-            alertsToSend.Add(String.Format("<a href='{0}'>{1} lost leg {2}</a>", Configuration.BondURI + bondId.ToString(), bondName, legId)); 
+
+            DownAlertsToSend.Add(String.Format("<a href='{0}'>{1}: leg {2} is down.</a>", Configuration.BondURI + bondId.ToString(), bondName, legId)); 
+        }
+
+        public void AddFlapAlert(int bondId, int legId, string bondName)
+        {
+            PrepSend();
+
+            FlapAlertsToSend.Add(String.Format("<a href='{0}'>{1}: leg {2} is flapping.</a>", Configuration.BondURI + bondId.ToString(), bondName, legId));
+        }
+
+        private void PrepSend()
+        {
+            if (DownAlertsToSend.Count() + FlapAlertsToSend.Count() == 0)
+            {
+                TimeUntilSend = 60000;
+            }
         }
 
 
         public bool SendAlerts()
         {
-            if (emailSending)
+            if (EmailSending)
             {
                 return false; //thread is locked, go away.
             }
 
-            emailSending = true;
+            EmailSending = true;
             //Set up an email setup here. Again, use the conf info.
             MailMessage mail = new MailMessage();
-            mail.From = new MailAddress(emailFrom);
+            mail.From = new MailAddress(EmailFrom);
             mail.IsBodyHtml = true;
-            foreach (var e in emailTo)
+            foreach (var e in EmailTo)
             {
                 mail.To.Add(e);
             }
-            foreach (var e in emailCC)
+            foreach (var e in EmailCc)
             {
                 mail.CC.Add(e);
             }
             SmtpClient client = new SmtpClient();
-            client.Host = smtpServer;
-            client.Port = smtpPort;
+            client.Host = SmtpServer;
+            client.Port = SmtpPort;
 
-            if (smtpUser != "")
+            if (SmtpUser != "")
             {
-                client.Credentials = new NetworkCredential(smtpUser, smtpPass);
+                client.Credentials = new NetworkCredential(SmtpUser, SmtpPass);
             }
             client.DeliveryMethod = SmtpDeliveryMethod.Network;
             client.UseDefaultCredentials = false;
 
-            mail.Subject = String.Format("{0} services lost connection", alertsToSend.Count());
-            foreach (string e in alertsToSend)
+            mail.Subject = String.Format("ML Watchdog: {0} legs down, {1} legs flapping", DownAlertsToSend.Count(), FlapAlertsToSend.Count());
+            foreach (string e in DownAlertsToSend)
             {
                 if (mail.Body != "")
                 {
@@ -123,18 +135,27 @@ namespace MultAppliedWatchdog
                 }
                 mail.Body += e;
             }
+            foreach (string e in FlapAlertsToSend)
+            {
+                if (mail.Body != "")
+                {
+                    mail.Body += "<br />";
+                }
+                mail.Body += e;
+            }
+
             try
             {
                 client.Send(mail);
-                alertsToSend = new List<string>();
-                emailSending = false;
+                DownAlertsToSend = new List<string>();
+                EmailSending = false;
                 return true;
             }
             catch
             {
                 //catch errors for emails here.
-                alertsToSend = new List<string>();
-                emailSending = false;
+                DownAlertsToSend = new List<string>();
+                EmailSending = false;
                 return false;
             }
         }

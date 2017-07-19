@@ -14,17 +14,19 @@ namespace MultAppliedWatchdog
         public static string ApiURI { get { return URI + "/api/v3/"; } }
         public static string BondURI { get { return URI + "/bonds/"; } }
 
-        private string username;
-        private string password;
+        private string Username;
+        private string Password;
 
-        public long timer;
-        public long timerTarget;
-        public int emailAlertThreshold;
-        public bool status = true;
+        public long Timer;
+        public long TimerTarget;
+        public int EmailAlertThreshold;
+        public bool Status = true;
+
+        public int UIRefreshRate = 250;
 
         public NetworkCredential GetCredentials {
             get {
-                return new NetworkCredential(username, password);
+                return new NetworkCredential(Username, Password);
             }
         }
 
@@ -32,16 +34,16 @@ namespace MultAppliedWatchdog
         {
             try
             {
-                username = Properties.config.Default.username;
-                password = Properties.config.Default.password;
+                Username = Properties.config.Default.username;
+                Password = Properties.config.Default.password;
                 URI = Properties.config.Default.server;
                 if (!Uri.IsWellFormedUriString(URI, UriKind.Absolute))
                 {
                     Console.WriteLine("URL {0} is invalid.", URI);
                     return false;
                 }
-                timerTarget = Properties.config.Default.refreshTimer;
-                emailAlertThreshold = Properties.config.Default.emailAlertThreshold;
+                TimerTarget = Properties.config.Default.refreshTimer;
+                EmailAlertThreshold = Properties.config.Default.emailAlertThreshold;
 
                 return true;
             }

@@ -19,14 +19,14 @@ namespace MultAppliedWatchdog
         static List<Bond> NewBonds = new List<Bond>();
         static List<WatchedLeg> WatchedLegs = new List<WatchedLeg>();
 
-        static List<UITextEntry> UIText = new List<UITextEntry>();
-        static List<string> Updates = new List<string>();
+        static List<UiTextEntry> UIText = new List<UiTextEntry>();
+        static List<UiUpdateEntry> Updates = new List<UiUpdateEntry>();
         //a few entries to the UI Text entry that we'll use.
-        static UITextEntry CurrentAction = new UITextEntry(Console.WindowTop, 0, "");
-        static UITextEntry Bonders = new UITextEntry(Console.WindowTop + 1, 0, "");
-        static UITextEntry Ticker = new UITextEntry(Console.WindowTop + 2, 0, "");
-        static UITextEntry Status = new UITextEntry(Console.WindowTop + Console.WindowHeight-2, 0, "Offline");
-        static UITextEntry UserInterface = new UITextEntry(Console.WindowTop + Console.WindowHeight-1, 0, "'x' to exit. 'c' to force refresh.");
+        static UiTextEntry CurrentAction = new UiTextEntry(Console.WindowTop, 0, "");
+        static UiTextEntry Bonders = new UiTextEntry(Console.WindowTop + 1, 0, "");
+        static UiTextEntry Ticker = new UiTextEntry(Console.WindowTop + 2, 0, "");
+        static UiTextEntry Status = new UiTextEntry(Console.WindowTop + Console.WindowHeight-2, 0, "Offline");
+        static UiTextEntry UserInterface = new UiTextEntry(Console.WindowTop + Console.WindowHeight-1, 0, "'x' to exit. 'c' to force refresh.");
 
         static Email Email;
 
@@ -34,6 +34,7 @@ namespace MultAppliedWatchdog
 
         static bool Stop = false;
         static bool Connected = false;
+        static bool ShowUI = true;
 
         static void Main(string[] args)
         {
@@ -57,7 +58,7 @@ namespace MultAppliedWatchdog
             Email.Configure();
 
 
-            CurrentAction.setNewText("Getting initial bonder data...");
+            CurrentAction.Text = "Getting initial bonder data...";
 
             List<Task> tasks;
 
@@ -70,22 +71,22 @@ namespace MultAppliedWatchdog
                 tasks.Add(Task.Factory.StartNew(() => { NewBonds = GetBonds(); }));
 
                 Task.WaitAll(tasks.ToArray());
-                if (Configuration.status)
+                if (Configuration.Status)
                 {
-                    Status.setNewText("Online");
+                    Status.Text = "Online";
 
                     Connected = true;
                 }
                 else
                 {
-                    UserInterface.setNewText("Unable to connect. Press Y to try again, any other key to exit.");
+                    UserInterface.Text = "Unable to connect. Press Y to try again, any other key to exit.";
                     char val = Console.ReadKey(false).KeyChar;
                     if (val != 'y') {
                         //Console.WriteLine("\nExiting...");
                         //Console.ReadKey();
                         return;
                     }
-                    UserInterface.setNewText("'x' to exit. 'c' to force refresh.");
+                    UserInterface.Text = "'x' to exit. 'c' to force refresh.";
                 }
             }
 
@@ -98,10 +99,10 @@ namespace MultAppliedWatchdog
             {
                 while (Connected)
                 {
-                    if (Configuration.timer > 0)
+                    if (Configuration.Timer > 0)
                     {
-                        Configuration.timer = CheckCountdownTimer(Configuration.timer);
-                        Ticker.setNewText(String.Format("{0} milliseconds remaining until next check.", Configuration.timer));
+                        Configuration.Timer = CheckCountdownTimer(Configuration.Timer);
+                        Ticker.Text = String.Format("{0} milliseconds remaining until next check.", Configuration.Timer);
                     }
                     else
                     {
@@ -114,26 +115,26 @@ namespace MultAppliedWatchdog
             {
                 while (Connected)
                 {
-                    if (!Email.emailSending && Email.alertsToSend.Count() > 0)
+                    if (!Email.EmailSending && Email.DownAlertsToSend.Count() > 0)
                     {
-                        if (Email.timeUntilSend > 0)
+                        if (Email.TimeUntilSend > 0)
                         {
-                            Email.timeUntilSend = CheckCountdownTimer(Email.timeUntilSend);
-                            CurrentAction.setNewText(String.Format("{0} milliseconds remaining until email sent, {1} alerts to send.", Email.timeUntilSend, Email.alertsToSend.Count()));
+                            Email.TimeUntilSend = CheckCountdownTimer(Email.TimeUntilSend);
+                            CurrentAction.Text = String.Format("{0} milliseconds remaining until email sent, {1} alerts to send.", Email.TimeUntilSend, Email.DownAlertsToSend.Count());
                         }
                         else
                         {
-                            Status.setNewText("Sending email...");
+                            Status.Text = "Sending email...";
                             if (Email.SendAlerts())
                             {
-                                Updates.Add("Email sent!");
-                                CurrentAction.setNewText(String.Format("Idle, email sent at {0}", DateTime.Now));
+                                Updates.Add(new UiUpdateEntry("Email sent!"));
+                                CurrentAction.Text = String.Format("Idle, email sent at {0}", DateTime.Now);
                             } else
                             {
-                                Updates.Add("Email failed to send.");
-                                CurrentAction.setNewText(String.Format("Idle, email failed sending at {0}", DateTime.Now));
+                                Updates.Add(new UiUpdateEntry("Email failed to send."));
+                                CurrentAction.Text = String.Format("Idle, email failed sending at {0}", DateTime.Now);
                             }
-                            Status.setNewText("Online");
+                            Status.Text = "Online";
                         }
                     }
                 }
@@ -145,7 +146,7 @@ namespace MultAppliedWatchdog
                     key = Console.ReadKey(false).KeyChar;
                     if (key == 'x')
                     {
-                        Configuration.status = false;
+                        Configuration.Status = false;
                         Stop = true;
                         Connected = false;
                     } else if (key == 'c') //c drops the timer to 0.
@@ -157,7 +158,25 @@ namespace MultAppliedWatchdog
                     } else if (key == 'a')
                     {
                         //forcibly add an alert.
-                        Email.AddEmailAlert(0, 0, "Bob!");
+                        Email.AddDownAlert(0, 0, "Bob!");
+                    } else if (key == 'b')
+                    {
+                        //print an update.
+                        Random rng = new Random();
+                        int length = rng.Next(5, 60);
+                        const string allowedChars = "ABCDEFGHJKLMNOPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz0123456789!@$?_-";
+
+                        //pick random chars and random length.
+                        char[] chars = new char[length];
+                        for (int i = 0; i < length; i++)
+                        {
+                            chars[i] = allowedChars[rng.Next(0, allowedChars.Length)];
+                        }
+                        Updates.Add(new UiUpdateEntry(chars.ToString()));
+                    } else if (key == 'u')
+                    {
+                        //toggle ui.
+                        ShowUI = !ShowUI;
                     }
                 }
             }));
@@ -178,41 +197,41 @@ namespace MultAppliedWatchdog
             foreach (Bond newBond in NewBonds)
             {
                 //find the old bond, if it's present.
-                Bond oldBond = CurrentBonds.FirstOrDefault(x => x.id == newBond.id);
+                Bond oldBond = CurrentBonds.FirstOrDefault(x => x.ID == newBond.ID);
                 if (oldBond == null)
                 {
-                    string update = String.Format("{0}: new bond!", newBond.name);
-                    Updates.Add(update);
+                    string update = String.Format("{0}: new bond!", newBond.Name);
+                    Updates.Add(new UiUpdateEntry(update));
                     continue;
                 }
 
                 //compare the legs.
-                foreach (Legs newLeg in newBond.leg_list)
+                foreach (Legs newLeg in newBond.Legs)
                 {
                     //find the entry in the current list.
-                    Legs oldLeg = oldBond.leg_list.FirstOrDefault(x => x.id == newLeg.id);
+                    Legs oldLeg = oldBond.Legs.FirstOrDefault(x => x.ID == newLeg.ID);
                     //if empty, continue, means it was brand new.
                     if (oldLeg == null)
                     {
-                        string update = String.Format("{0}: new leg {1}", newBond.name, newLeg.id);
-                        Updates.Add(update);
+                        string update = String.Format("{0}: new leg {1}", newBond.Name, newLeg.ID);
+                        Updates.Add(new UiUpdateEntry(update));
                         continue;
                     }
-                    if (oldLeg.state != newLeg.state)
+                    if (oldLeg.State != newLeg.State)
                     {
-                        string update = String.Format("{0}: leg {1} changed from {2} to {3}", newBond.name, newLeg.id, oldLeg.state, newLeg.state);
-                        Updates.Add(update);
+                        string update = String.Format("{0}: leg {1} changed from {2} to {3}", newBond.Name, newLeg.ID, oldLeg.State, newLeg.State);
+                        Updates.Add(new UiUpdateEntry(update));
                     }
 
-                    WatchedLeg watchLeg = WatchedLegs.FirstOrDefault(x => x.id == oldLeg.id);
-                    if (oldLeg.state != "down" && newLeg.state == "down")
+                    WatchedLeg watchLeg = WatchedLegs.FirstOrDefault(x => x.ID == oldLeg.ID);
+                    if (oldLeg.State != "down" && newLeg.State == "down")
                     {
                         //if this was triggered after the initial fetch (don't want to be sending redundant emails), add to the watchlist.
-                        string update = String.Format("{0}, leg {1} dropped!", newBond.name, newLeg.id);
-                        Updates.Add(update);
+                        string update = String.Format("{0}, leg {1} dropped!", newBond.Name, newLeg.ID);
+                        Updates.Add(new UiUpdateEntry(update));
                         if (watchLeg == null)
                         {
-                            watchLeg = new WatchedLeg(newLeg.id);
+                            watchLeg = new WatchedLeg(newLeg.ID);
                             WatchedLegs.Add(watchLeg);
                         }
                     }
@@ -222,24 +241,50 @@ namespace MultAppliedWatchdog
                     {
                         continue;
                     }
-                    if (newLeg.state != "down")
+
+                    //if the leg is not down, add an up event.
+                    if (newLeg.State != "down")
                     {
-                        watchLeg.downCount = Math.Max(watchLeg.downCount - 1, 0);
-                        if (watchLeg.downCount == 0)
+                        watchLeg.UpEvents.Add(DateTime.Now);
+                        watchLeg.DownCount = Math.Max(watchLeg.DownCount - 1, 0);
+                        if (watchLeg.DownCount == 0)
                         {
-                            string Update = String.Format("{0} detected up for {1} ticks. Clearing watch.", newLeg.id, Configuration.emailAlertThreshold);
-                            watchLeg.alerted = false;
+                            string Update = String.Format("{0} detected up for {1} ticks. Clearing alert.", newLeg.ID, Configuration.EmailAlertThreshold);
+                            watchLeg.AlertedForConsecutiveDowns = false;
                         }
                     }
+
+                    //if the leg is down, add a down event and check for consecutive downs.
                     else
                     {
-                        watchLeg.downCount = Math.Min(watchLeg.downCount +1, Configuration.emailAlertThreshold);
-                        Updates.Add(String.Format("{0}, leg {1} has been down for {2} ticks", newBond.name, newLeg.id, watchLeg.downCount));
-                        if (watchLeg.downCount == Configuration.emailAlertThreshold && !watchLeg.alerted)
-                        {
-                            Email.AddEmailAlert(newBond.id, newLeg.id, newBond.name);
-                            Updates.Add(String.Format("Alert added for {0}, leg {1}", newBond.name, newLeg.id));
-                            watchLeg.alerted = true;
+                        watchLeg.DownEvents.Add(DateTime.Now);
+                        watchLeg.DownCount = Math.Min(watchLeg.DownCount +1, Configuration.EmailAlertThreshold);
+                        Updates.Add(new UiUpdateEntry(String.Format("{0}, leg {1} has been down for {2} ticks", newBond.Name, newLeg.ID, watchLeg.DownCount)));
+                    }
+
+                    //if there are enough consecutive downs, send an email, unless one was sent.
+                    if (watchLeg.DownCount == Configuration.EmailAlertThreshold && !watchLeg.AlertedForConsecutiveDowns)
+                    {
+                        Email.AddDownAlert(newBond.ID, newLeg.ID, newBond.Name);
+                        Updates.Add(new UiUpdateEntry(String.Format("Down alert added for {0}, leg {1}", newBond.Name, newLeg.ID)));
+                        watchLeg.AlertedForConsecutiveDowns = true;
+                        watchLeg.AlertedForConsecutiveDownsTime = DateTime.Now;
+                    }
+
+                    //check for health status of leg
+                    if (watchLeg.Flapping() && !watchLeg.AlertedForFlap)
+                    {
+                        Email.AddFlapAlert(newBond.ID, newLeg.ID, newBond.Name);
+                        Updates.Add(new UiUpdateEntry(String.Format("Flap alert added for {0}, leg {1}", newBond.Name, newLeg.ID)));
+                        watchLeg.AlertedForFlap = true;
+                        watchLeg.AlertedForFlapTime = DateTime.Now;
+                    }
+
+                    if (watchLeg.AlertedForFlap && !watchLeg.Flapping())
+                    {
+                        //if there are none in the last two hours at all, remove alert for flap - new alert will need to be sent.
+                        if (watchLeg.DownEvents.Where(x=> x > DateTime.Now.AddHours(-2)).Count() == 0){
+                            watchLeg.AlertedForFlap = false; 
                         }
                     }
                 }
@@ -259,7 +304,7 @@ namespace MultAppliedWatchdog
             //attempt to connect...
             try
             {
-                CurrentAction.setNewText("Getting bonder data...");
+                CurrentAction.Text = "Getting bonder data...";
                 Task getData;
                 getData = Task.Factory.StartNew(() =>
                 {
@@ -276,35 +321,35 @@ namespace MultAppliedWatchdog
                             int onlineLegs = 0;
                             foreach (var b in bonds)
                             {
-                                legs += b.leg_list.Count();
-                                onlineLegs += b.leg_list.Where(x => x.state != "down").Count();
+                                legs += b.Legs.Count();
+                                onlineLegs += b.Legs.Where(x => x.State != "down").Count();
                             }
-                            Bonders.setNewText(String.Format("{0} bonders detected, {1}/{2} legs online.", bonds.Count(), onlineLegs, legs));
-                            CurrentAction.setNewText("Idle, last poll at " + System.DateTime.Now);
+                            Bonders.Text = String.Format("{0} bonders detected, {1}/{2} legs online. {3} legs being watched.", bonds.Count(), onlineLegs, legs, WatchedLegs.Count());
+                            CurrentAction.Text = "Idle, last poll at " + System.DateTime.Now;
                         }
                     }
                     catch (WebException e)
                     {
                         //if it fails, we want to mark it as failed, and then return an empty bond list. Also, potentially, we want to log specific errors.
-                        CurrentAction.setNewText("");
-                        Status.setNewText("Offline");
+                        CurrentAction.Text = "";
+                        Status.Text = "Offline";
                         using (WebResponse response = e.Response)
                         {
-                            Configuration.status = false; //mark it as failed.
+                            Configuration.Status = false; //mark it as failed.
                         }
-                        CurrentAction.setNewText("Failed to connect");
-                        Status.setNewText("Unable to connect.");
+                        CurrentAction.Text = "Failed to connect";
+                        Status.Text = "Unable to connect.";
                     }
                 });
 
                 //add a ticker so we're sure that it's updatnig.
-                Ticker.setNewText("Loading.");
+                Ticker.Text = "Loading.";
                 while (!getData.IsCompleted)
                 {
                     Thread.Sleep(100);
-                    Ticker.text += ".";
+                    Ticker.Text += ".";
                 }
-                Configuration.timer = Configuration.timerTarget;
+                Configuration.Timer = Configuration.TimerTarget;
             }
             catch (WebException e)
             {
@@ -333,34 +378,55 @@ namespace MultAppliedWatchdog
         {
             while (!Stop)
             {
-                Thread.Sleep(33);
-                for (int i = 0; i < UIText.Count(); i++)
+                Thread.Sleep(250);
+                if (!ShowUI)
                 {
-                    if (UIText[i].clear)
+                    //stuff.
+                }
+                else
+                {
+                    for (int i = 0; i < UIText.Count(); i++)
                     {
-                        //if it's set to clear, print blankspaces.
-                        for (int x = UIText[i].column; x < UIText[i].column + UIText[i].text.Length; x++)
+                        if (UIText[i].Clear)
                         {
-                            Console.SetCursorPosition(x, UIText[i].row);
-                            Console.Write(" ");
-                        }
-                        UIText[i].text = UIText[i].newText;
-                        UIText[i].newText = "";
-                        UIText[i].clear = false;
-                    }
-                    Console.SetCursorPosition(UIText[i].column, UIText[i].row);
-                    Console.Write(UIText[i].text);
-                }
+                            int clearWidth = Console.WindowWidth;
 
-                var maxUpdates = (Console.WindowTop + 4) + (Console.WindowHeight -11);
-                if (Updates.Count() > maxUpdates)
-                {
-                    Updates.RemoveRange(0, Updates.Count() - maxUpdates);
-                }
-                for (int i = 0; i < Updates.Count() && i < maxUpdates; i++)
-                {
-                    Console.SetCursorPosition(0, Console.WindowTop + 4 + i);
-                    Console.Write(Updates[i]);
+                            //if it's set to clear, print blanks to override old stuff.
+                            Console.SetCursorPosition(0, UIText[i].Row);
+                            Console.Write(String.Concat(Enumerable.Repeat(" ", Console.WindowWidth)));
+                            UIText[i].Clear = false;
+
+                            Console.SetCursorPosition(UIText[i].Column, UIText[i].Row);
+                            Console.Write(UIText[i].Text);
+                        }
+                    }
+
+                    var maxUpdates = (Console.WindowTop + 4) + (Console.WindowHeight - 11);
+                    while (Updates.Count() > maxUpdates)
+                    {
+                        Updates.RemoveRange(0, maxUpdates / 2);
+                        for (int i = Updates.Count(); i < (Console.WindowTop + 4) + (Console.WindowHeight - 6); i++)
+                        {
+                            Console.SetCursorPosition(0, i);
+                            Console.Write(string.Concat(Enumerable.Repeat(" ", Console.WindowWidth)));
+                        }
+                        for (int i = 0; i < Updates.Count(); i++)
+                        {
+                            Updates[i].Update = true;
+                        }
+                    }
+                    for (int i = 0; i < Updates.Count() && i < maxUpdates; i++)
+                    {
+                        if (Updates[i].Update)
+                        {
+                            Console.SetCursorPosition(0, Console.WindowTop + 4 + i);
+                            Console.Write(Updates[i].Text);
+                            if (Updates[i].Text.Length < Console.WindowWidth)
+                            {
+                                Console.Write(string.Concat(Enumerable.Repeat(" ", Console.WindowWidth - Updates[i].Text.Length)));
+                            }
+                        }
+                    }
                 }
             }
         }

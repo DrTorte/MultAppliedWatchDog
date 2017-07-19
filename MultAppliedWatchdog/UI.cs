@@ -6,25 +6,32 @@ using System.Threading.Tasks;
 
 namespace MultAppliedWatchdog
 {
-    class UITextEntry
+    class UiTextEntry
     {
-        public int row;
-        public int column;
-        public string text;
-        public string newText;
-        public bool clear = false;
+        public int Row;
+        public int Column;
+        private string TextInternal;
+        public string Text { get { return TextInternal; } set { TextInternal = value; Clear = true; } }
+        public bool Clear = false;
 
-        public UITextEntry(int _row, int _column, string _text)
+        public UiTextEntry(int _row, int _column, string _text)
         {
-            row = _row;
-            column = _column;
-            text = _text;
+            Row = _row;
+            Column = _column;
+            Text = _text;
         }
+    }
 
-        public void setNewText(string text)
+    class UiUpdateEntry
+    {
+        public string InternalText;
+        public string Text { get { return InternalText; } set { InternalText = value; Update = true; } }
+        public bool Update = false;
+
+        public UiUpdateEntry(string __text)
         {
-            clear = true;
-            newText = text;
+            Text = __text;
+            Update = true;
         }
     }
 }
